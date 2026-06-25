@@ -23,7 +23,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(title="AI Software Architect")
 app.state.limiter = limiter
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "https://buildx-jet.vercel.app"], allow_methods=["*"], allow_headers=["*"])
 
 @app.exception_handler(RateLimitExceeded)
 def rate_limit_handler(request: Request, exc: RateLimitExceeded):
