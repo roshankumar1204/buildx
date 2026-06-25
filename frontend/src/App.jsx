@@ -136,8 +136,16 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0f1117] text-gray-200 flex flex-col">
       <header className="border-b border-white/10 px-6 py-4">
-        <h1 className="text-lg font-semibold text-white">AI Software Architect</h1>
-        <p className="text-xs text-gray-500">Turn a one-line requirement into a full engineering plan</p>
+        <div className="flex flex-col gap-2">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-[11px] text-amber-200">
+            <span className="h-2 w-2 rounded-full bg-amber-300" />
+            Backend may take 15-30 seconds to wake up on the first request because it runs on a free server.
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold text-white">Build X Architect</h1>
+            <p className="text-xs text-gray-500">Turn a one-line requirement into a full engineering plan</p>
+          </div>
+        </div>
       </header>
 
       <div className="flex-1 p-6 max-w-5xl mx-auto w-full">
