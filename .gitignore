@@ -16,3 +16,6 @@ __pycache__/
 # Environment files
 .env.*
 !.env.example
+
+
+frontend/node_modules/*
