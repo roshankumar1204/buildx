@@ -1,0 +1,18 @@
+# Python virtual environments
+.env
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+**/__pycache__/
+
+# Compiled Python files
+*.pyc
+*.pyo
+*.pyd
+
+# Environment files
+.env.*
+!.env.example
