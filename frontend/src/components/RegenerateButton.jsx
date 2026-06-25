@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { regenerateStage } from '../lib/api';
 
-export function RegenerateButton({ stage, payload, onResult }) {
+export function RegenerateButton({ stage, payload, onResult, onCost }) {
   const [loading, setLoading] = useState(false);
 
   const handleClick = async () => {
     setLoading(true);
     try {
-      const data = await regenerateStage(stage, payload);
-      onResult(data);
+      const res = await regenerateStage(stage, payload);
+      onResult(res.data);
+      if (onCost) onCost(res.usage?.total_tokens || 0, res.cost || 0);
     } catch (err) {
       alert(`Regeneration failed: ${err.message}`);
     } finally {

@@ -1,75 +1,137 @@
 import { useEffect, useState } from 'react';
 import { SpecInput } from './components/SpecInput';
 import { ResultTabs } from './components/ResultTabs';
-import { generatePlan } from './lib/api';
+import { StageProgress } from './components/StageProgress';
+import { CostFooter } from './components/CostFooter';
+import { generatePlanStream } from './lib/api';
 
-const STORAGE_KEY = 'builderx-draft-state';
+const EMPTY_STAGES = {
+  requirements: 'pending', schema: 'pending', api: 'pending',
+  frontend: 'pending', sprint: 'pending', docker: 'pending',
+};
 
-function loadSavedState() {
-  if (typeof window === 'undefined') return { spec: '', result: null, error: '' };
+const STORAGE_KEY = 'builderx.planSnapshot.v1';
+
+function loadSnapshot() {
+  if (typeof window === 'undefined') return null;
 
   try {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (!saved) return { spec: '', result: null, error: '' };
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
 
-    const parsed = JSON.parse(saved);
+    const snapshot = JSON.parse(raw);
     return {
-      spec: typeof parsed.spec === 'string' ? parsed.spec : '',
-      result: parsed.result ?? null,
-      error: typeof parsed.error === 'string' ? parsed.error : '',
+      spec: typeof snapshot.spec === 'string' ? snapshot.spec : '',
+      result: snapshot.result && typeof snapshot.result === 'object' ? snapshot.result : {},
+      stages: snapshot.stages && typeof snapshot.stages === 'object' ? snapshot.stages : EMPTY_STAGES,
+      totalTokens: Number.isFinite(snapshot.totalTokens) ? snapshot.totalTokens : 0,
+      totalCost: Number.isFinite(snapshot.totalCost) ? snapshot.totalCost : 0,
     };
   } catch {
-    return { spec: '', result: null, error: '' };
+    return null;
   }
 }
 
 export default function App() {
-  const [savedState] = useState(() => loadSavedState());
-  const [spec, setSpec] = useState(savedState.spec);
-  const [result, setResult] = useState(savedState.result);
+  const snapshot = loadSnapshot();
+  const [spec, setSpec] = useState(snapshot?.spec || '');
+  const [result, setResult] = useState(snapshot?.result || {});
+  const [stages, setStages] = useState(snapshot?.stages || EMPTY_STAGES);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(savedState.error);
+  const [error, setError] = useState('');
+  const [totalTokens, setTotalTokens] = useState(snapshot?.totalTokens || 0);
+  const [totalCost, setTotalCost] = useState(snapshot?.totalCost || 0);
+
+  const clearSavedState = () => {
+    setSpec('');
+    setResult({});
+    setStages(EMPTY_STAGES);
+    setError('');
+    setTotalTokens(0);
+    setTotalCost(0);
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    try {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ spec, result, error })
-      );
-    } catch {
-      // Ignore storage quota or browser privacy errors.
-    }
-  }, [spec, result, error]);
+    const snapshotData = {
+      spec,
+      result,
+      stages,
+      totalTokens,
+      totalCost,
+    };
 
-  const handleClear = () => {
-    setSpec('');
-    setResult(null);
-    setError('');
+    const hasMeaningfulData =
+      spec.trim() ||
+      Object.keys(result).length > 0 ||
+      Object.values(stages).some(stage => stage !== 'pending') ||
+      totalTokens > 0 ||
+      totalCost > 0;
 
-    if (typeof window === 'undefined') return;
-
-    try {
+    if (!hasMeaningfulData) {
       window.localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // Ignore storage errors on clear as well.
+      return;
     }
+
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshotData));
+  }, [spec, result, stages, totalTokens, totalCost]);
+
+  const addCost = (tokens, cost) => {
+    setTotalTokens(t => t + tokens);
+    setTotalCost(c => c + cost);
   };
 
   const handleGenerate = async () => {
     if (!spec.trim()) return;
     setLoading(true);
     setError('');
+    setResult({});
+    setStages(EMPTY_STAGES);
+    setTotalTokens(0);
+    setTotalCost(0);
+
     try {
-      const data = await generatePlan(spec);
-      setResult(data);
+      await generatePlanStream(spec, (event) => {
+        if (event.stage === 'error') {
+          setError(event.message);
+          return;
+        }
+        if (event.status === 'start') {
+          setStages(s => ({ ...s, [event.stage]: 'in-progress' }));
+        }
+        if (event.status === 'done') {
+          setStages(s => ({ ...s, [event.stage]: 'done' }));
+          if (event.data) setResult(r => ({ ...r, [event.stage]: event.data }));
+          if (typeof event.running_tokens === 'number') {
+            setTotalTokens(event.running_tokens);
+            setTotalCost(event.running_cost);
+          }
+        }
+        if (event.stage === 'complete') {
+          setTotalTokens(event.total_tokens);
+          setTotalCost(event.total_cost);
+        }
+      });
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  const hasAnyResult = Object.keys(result).length > 0;
+  const hasSavedData = Boolean(
+    spec.trim() ||
+    hasAnyResult ||
+    Object.values(stages).some(stage => stage !== 'pending') ||
+    totalTokens > 0 ||
+    totalCost > 0
+  );
 
   return (
     <div className="min-h-screen bg-[#0f1117] text-gray-200 flex flex-col">
@@ -83,9 +145,9 @@ export default function App() {
           spec={spec}
           setSpec={setSpec}
           onGenerate={handleGenerate}
-          onClear={handleClear}
+          onClear={clearSavedState}
           loading={loading}
-          hasSavedData={Boolean(spec || result || error)}
+          hasSavedData={hasSavedData}
         />
 
         {error && (
@@ -94,9 +156,11 @@ export default function App() {
           </div>
         )}
 
-        {result && (
+        {(loading || hasAnyResult) && (
           <div className="mt-6">
-            <ResultTabs result={result} setResult={setResult} spec={spec} />
+            <StageProgress stages={stages} />
+            <ResultTabs result={result} setResult={setResult} spec={spec} onCost={addCost} />
+            <CostFooter totalTokens={totalTokens} totalCost={totalCost} />
           </div>
         )}
       </div>
