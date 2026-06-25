@@ -1,4 +1,4 @@
-export function SpecInput({ spec, setSpec, onGenerate, loading }) {
+export function SpecInput({ spec, setSpec, onGenerate, onClear, loading, hasSavedData }) {
   return (
     <div className="flex gap-3">
       <input
@@ -9,6 +9,14 @@ export function SpecInput({ spec, setSpec, onGenerate, loading }) {
         className="flex-1 px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-sm
                    placeholder:text-gray-500 outline-none focus:border-violet-500/50 transition-colors"
       />
+      <button
+        onClick={onClear}
+        disabled={!hasSavedData && !spec.trim()}
+        className="px-5 py-3 rounded-lg bg-white/5 border border-white/10 text-sm font-medium text-gray-200
+                   hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        Clear
+      </button>
       <button
         onClick={onGenerate}
         disabled={loading || !spec.trim()}
