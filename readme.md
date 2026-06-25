@@ -156,5 +156,4 @@ Token counts come straight from Gemini's `usage_metadata` on every response — 
 ## Known limitations
 
 - Docker output is templated from the schema/API shape, not validated against the actual stack choices in the PRD.
-- No persistence — refreshing the page loses the current plan. Stateless by design for v1.
 - Schema/relationship direction is not cross-validated between stages (e.g. a relationship can point the wrong way relative to its actual foreign key) — this is exactly what the per-stage Regenerate button exists to catch.
